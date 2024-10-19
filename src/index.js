@@ -4,7 +4,7 @@ const context = canvas.getContext('2d');
 canvas.width = 400;
 canvas.height = 400;
 
-const boardSize = 10
+const boardSize = 20
 const cellSize = canvas.width / boardSize; 
 
 const cellStates = {
@@ -20,18 +20,39 @@ const headDirections = {
     LEFT: 3,
 }
 
+const playerTypes = {
+    HUMAN: 0,
+    AI: 1,
+}
+
 gameState = {
     board: Array(boardSize).fill().map(() => Array(boardSize).fill(cellStates.EMPTY)),
-    snake: {
-        direction: headDirections.RIGHT, 
-        length: 3,
-        body: [
-            { x: Math.floor(boardSize / 2), y: Math.floor(boardSize / 2) },
-            { x: Math.floor(boardSize / 2)-1, y: Math.floor(boardSize / 2) },
-            { x: Math.floor(boardSize / 2)-3, y: Math.floor(boardSize / 2) },
-        ],
+
+    snakes: [
+        {
+            player : playerTypes.AI,
+            direction : headDirections.DOWN,
+            body : [
+                { x: Math.floor(boardSize / 2), y: Math.floor(boardSize / 2) },
+                { x: Math.floor(boardSize / 2)-1, y: Math.floor(boardSize / 2) },
+                { x: Math.floor(boardSize / 2)-3, y: Math.floor(boardSize / 2) },
+            ],
+        },
+        {
+            player : playerTypes.HUMAN,
+            direction : headDirections.RIGHT,
+            body : [
+                { x: Math.floor(boardSize / 2), y: Math.floor(boardSize / 2) },
+                { x: Math.floor(boardSize / 2)-1, y: Math.floor(boardSize / 2) },
+                { x: Math.floor(boardSize / 2)-3, y: Math.floor(boardSize / 2) },
+            ],
+        }
+    ],
+
+    foodPosition : {
+        x: Math.floor(Math.random() * boardSize),
+        y: Math.floor(Math.random() * boardSize)
     },
-    foodPosition : {x: Math.floor(Math.random() * boardSize), y: Math.floor(Math.random() * boardSize)},
 
     gameOver: false,
 }
@@ -49,49 +70,54 @@ update = () => {
     }
     
     const board = gameState.board;
-    const snake = gameState.snake;
 
-    headPosition = {...snake.body[0]};
-    tailPosition = {...snake.body[snake.body.length - 1]};
+    gameState.snakes.forEach(snake => {
+        headPosition = {...snake.body[0]};
+        tailPosition = {...snake.body[snake.body.length - 1]};
 
-    // AI();
+        if (snake.player === playerTypes.AI) {
+            AI(snake);
+        }
 
-    newPosition = moveHead(headPosition, snake.direction);
+        newPosition = moveHead(headPosition, snake.direction);
 
-    board[tailPosition.x][tailPosition.y] = cellStates.EMPTY;
+        board[tailPosition.x][tailPosition.y] = cellStates.EMPTY;
 
-    // check if the snake is out of bounds
-    if (newPosition.x < 0 || newPosition.x >= boardSize || newPosition.y < 0 || newPosition.y >= boardSize){
-        gameState.gameOver = true;
+        // check if the snake is out of bounds
+        if (newPosition.x < 0 || newPosition.x >= boardSize || newPosition.y < 0 || newPosition.y >= boardSize){
+            gameState.gameOver = true;
 
-        return;
-    }
+            return;
+        }
 
-    // check if the snake eats itself
-    if (board[newPosition.x][newPosition.y] == cellStates.SNAKE){
-        gameState.gameOver = true;
+        // check if the snake eats itself
+        if (board[newPosition.x][newPosition.y] == cellStates.SNAKE){
+            gameState.gameOver = true;
 
-        return;
-    }
+            return;
+        }
 
-    // check if the snake eats the food
-    if (newPosition.x == gameState.foodPosition.x && newPosition.y == gameState.foodPosition.y){
-        snake.body = [newPosition, ...snake.body];
+        // check if the snake eats the food
+        if (newPosition.x == gameState.foodPosition.x && newPosition.y == gameState.foodPosition.y){
+            snake.body = [newPosition, ...snake.body];
 
-        board[gameState.foodPosition.x][gameState.foodPosition.y] = cellStates.EMPTY;
-        do {
-            gameState.foodPosition = {x: Math.floor(Math.random() * boardSize), y: Math.floor(Math.random() * boardSize)};
-        } while (board[gameState.foodPosition.x][gameState.foodPosition.y] != cellStates.EMPTY);
+            snake.score++
 
-
-    }else{
-        snake.body = [newPosition, ...snake.body.slice(0, snake.body.length - 1)];
-    }
+            board[gameState.foodPosition.x][gameState.foodPosition.y] = cellStates.EMPTY;
+            do {
+                gameState.foodPosition = {x: Math.floor(Math.random() * boardSize), y: Math.floor(Math.random() * boardSize)};
+            } while (board[gameState.foodPosition.x][gameState.foodPosition.y] != cellStates.EMPTY);
 
 
-    snake.body.forEach(el => {
-        board[el.x][el.y] = cellStates.SNAKE;
-    });
+        }else{
+            snake.body = [newPosition, ...snake.body.slice(0, snake.body.length - 1)];
+        }
+
+
+        snake.body.forEach(el => {
+            board[el.x][el.y] = cellStates.SNAKE;
+        });
+    })
 
     board[gameState.foodPosition.x][gameState.foodPosition.y] = cellStates.FOOD;
 }
@@ -117,10 +143,11 @@ moveHead = (position, direction) => {
     return newPosition;
 }
 
-AI = () => {
-    const snakeHead = gameState.snake.body[0];
+AI = (snake) => {
+    const snakeHead = snake.body[0];
     const food = gameState.foodPosition;
-    const snakeBody = gameState.snake.body.slice(1);
+
+    const snakeBody = snake.body.slice(1);
 
     const isSafe = (position) => {
         if (position.x < 0 || position.x >= boardSize || position.y < 0 || position.y >= boardSize) {
@@ -174,9 +201,7 @@ AI = () => {
         return b.rank - a.rank;
     });
 
-    // safeMoves.sort((a, b) => getDistance(a.position, food) - getDistance(b.position, food));
-    gameState.snake.direction = safeMoves[0].direction;
-
+    snake.direction = safeMoves[0].direction;
 }
 
 
@@ -237,38 +262,47 @@ drawCell = (position, state) => {
 
 controler = () => {
     window.addEventListener('keydown', (event) => {
+        const player = gameState.snakes.find((snake) => {
+            return snake.player === playerTypes.HUMAN;
+        })
+
+        if (!player){
+            return;
+        }
+
         switch (event.key){
             case 'ArrowUp':
-                if (gameState.snake.direction == headDirections.DOWN){
+                if (player.direction == headDirections.DOWN){
                     return;
                 }
 
-                gameState.snake.direction = headDirections.UP;
+                player.direction = headDirections.UP;
                 break;
             case 'ArrowRight':
-                if (gameState.snake.direction == headDirections.LEFT){
+                if (player.direction == headDirections.LEFT){
                     return;
                 }
 
-                gameState.snake.direction = headDirections.RIGHT;
+                player.direction = headDirections.RIGHT;
                 break;
             case 'ArrowDown':
-                if (gameState.snake.direction == headDirections.UP){
+                if (player.direction == headDirections.UP){
                     return;
                 }
 
-                gameState.snake.direction = headDirections.DOWN;
+                player.direction = headDirections.DOWN;
                 break;
             case 'ArrowLeft':
-                if (gameState.snake.direction == headDirections.RIGHT){
+                if (player.direction == headDirections.RIGHT){
                     return;
                 }
 
-                gameState.snake.direction = headDirections.LEFT;
+                player.direction = headDirections.LEFT;
                 break;
         }
     })
 }
 
 controler()
+
 gameloop()
