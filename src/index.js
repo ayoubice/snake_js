@@ -10,7 +10,8 @@ const cellSize = canvas.width / boardSize;
 const cellStates = {
     EMPTY: 0,
     SNAKE: 1,
-    FOOD: 2,
+    SHODOW_SNAKE: 2,
+    FOOD: 3,
 }
 
 const headDirections = {
@@ -21,8 +22,8 @@ const headDirections = {
 }
 
 const playerTypes = {
-    HUMAN: 0,
-    AI: 1,
+    HUMAN: "Human",
+    AI: "AI"
 }
 
 gameState = {
@@ -37,6 +38,8 @@ gameState = {
                 { x: Math.floor(boardSize / 2)-1, y: Math.floor(boardSize / 2) },
                 { x: Math.floor(boardSize / 2)-3, y: Math.floor(boardSize / 2) },
             ],
+            lost: false,
+            shadow: true,
         },
         {
             player : playerTypes.HUMAN,
@@ -46,6 +49,8 @@ gameState = {
                 { x: Math.floor(boardSize / 2)-1, y: Math.floor(boardSize / 2) },
                 { x: Math.floor(boardSize / 2)-3, y: Math.floor(boardSize / 2) },
             ],
+            lost: false,
+            shadow: false,
         }
     ],
 
@@ -85,14 +90,14 @@ update = () => {
 
         // check if the snake is out of bounds
         if (newPosition.x < 0 || newPosition.x >= boardSize || newPosition.y < 0 || newPosition.y >= boardSize){
-            gameState.gameOver = true;
+            snake.lost = true;
 
             return;
         }
 
         // check if the snake eats itself
-        if (board[newPosition.x][newPosition.y] == cellStates.SNAKE){
-            gameState.gameOver = true;
+        if (snake.body.some( (el) => (el.x == newPosition.x && el.y == newPosition.y))) {
+            snake.lost = true;
 
             return;
         }
@@ -115,9 +120,13 @@ update = () => {
 
 
         snake.body.forEach(el => {
-            board[el.x][el.y] = cellStates.SNAKE;
+            board[el.x][el.y] = snake.shadow ? cellStates.SHODOW_SNAKE : cellStates.SNAKE;
         });
     })
+
+    if ( gameState.snakes.some(s => s.lost) ) {
+        gameState.gameOver = true;
+    }
 
     board[gameState.foodPosition.x][gameState.foodPosition.y] = cellStates.FOOD;
 }
@@ -209,9 +218,12 @@ draw = () => {
     clear()
 
     if (gameState.gameOver){
+        const winner = gameState.snakes.find(s => !s.lost);
+
         context.fillStyle = '#FFFFFF';
         context.font = '30px Arial';
         context.fillText('Game Over', canvas.width / 2 - 90, canvas.height / 2);
+        context.fillText(winner.player + ' win the game', canvas.width / 2 - 90, canvas.height / 2 + 30);
 
         return
     }
@@ -250,6 +262,9 @@ drawCell = (position, state) => {
             break;
         case cellStates.SNAKE:
             color = '#FFFFFF';
+            break;
+        case cellStates.SHODOW_SNAKE:
+            color = '#808080';
             break;
         case cellStates.FOOD:
             color = '#FF0000';
